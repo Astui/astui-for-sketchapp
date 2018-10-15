@@ -1,0 +1,37 @@
+{
+  "name" : "Astui For Sketch",
+  "identifier" : "astui.sketchplugin",
+  "version" : "1.0.0",
+  "description" : "Astui plugin for Sketch",
+  "authorEmail" : "astui@astutegraphics.co.uk",
+  "author" : "Astute Graphics Limited",
+  "compatibleVersion": 3,
+  "bundleVersion": 1,
+  "icon": "logo.png",
+  "commands": [
+    {
+      "name": "Astui API Token",
+      "identifier": "api-token-identifier",
+      "script": "./apitoken.js"
+    },
+    {
+      "name": "Smart Point Remove",
+      "identifier": "ssr-identifier",
+      "script": "./supersmartremove.js"
+    },
+    {
+      "name": "Move Points to Tangencies",
+      "identifier": "tangencies-identifier",
+      "script": "./tangencies.js"
+    }
+  ],
+  "menu": {
+    "title": "Astui",
+    "items": [
+      "api-token-identifier",
+      "ssr-identifier",
+      "tangencies-identifier"
+    ]
+  },
+  "disableCocoaScriptPreprocessor": true
+}

@@ -1,0 +1,32 @@
+{
+  "name": "astui",
+  "version": "0.2.1",
+  "engines": {
+    "sketch": ">=3.0"
+  },
+  "skpm": {
+    "name": "astui",
+    "manifest": "src/manifest.json",
+    "main": "astui.sketchplugin",
+    "assets": [
+      "assets/**/*"
+    ],
+    "resources": [
+      "resources/**/*.js",
+      "src/**.js "
+    ]
+  },
+  "scripts": {
+    "build": "skpm-build",
+    "watch": "skpm-build --watch",
+    "start": "skpm-build --watch --run",
+    "postinstall": "npm run build && skpm-link"
+  },
+  "devDependencies": {
+    "@skpm/builder": "^0.5.2"
+  },
+  "dependencies": {
+    "npm": "^6.4.1",
+    "sketch-module-web-view": "^1.1.8"
+  }
+}
