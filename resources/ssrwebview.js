@@ -3,12 +3,6 @@
  */
 import pluginCall from 'sketch-module-web-view/client'
 
-
-// Disable the context menu to have a more native feel
-document.addEventListener("contextmenu", function (e) {
-	e.preventDefault();
-});
-
 /**
  * This section focuses on mirroring the accuracy value that the user has selection
  */
@@ -25,15 +19,19 @@ document.getElementById('accuracy').addEventListener('input', function () {
  * decimal - doesn't exist in this context for sketch, so set to default three.
  */
 document.getElementById('apply').addEventListener('click', function () {
+
+
+	
 	var tolerance = document.getElementById('accuracy').value;
 	var decimal = 3;
 	var obj = {
 		"tolerance": tolerance,
 		"decimal": decimal
 	};
-	//resolving the plugin call connection and closing the window.
 	
-	pluginCall('nativeGo', JSON.stringify(obj));
+	document.getElementById("loading").style.display = "block";
+    //resolving the plugin call connection and closing the window.
+    pluginCall('nativeGo', JSON.stringify(obj));
 });
 
 /**
@@ -41,4 +39,9 @@ document.getElementById('apply').addEventListener('click', function () {
  */
 document.getElementById('cancel').addEventListener('click', function () {
 	pluginCall('nativeClose', "placeholder");
+});
+
+// Disable the context menu to have a more native feel
+document.addEventListener("contextmenu", function (e) {
+	e.preventDefault();
 });

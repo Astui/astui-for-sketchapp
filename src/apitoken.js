@@ -42,7 +42,7 @@ export default function (context) {
      * The string gets passed from webview file into here.
      */
     webContents.on('nativeGo', (token) => {
-        checkAuth(token, browserWindow);
+        checkAuth(token).then((s) => {browserWindow.close();});
     });
 
     //loading the local HTML for this 
@@ -56,9 +56,9 @@ export default function (context) {
  * @param string token 
  * @param {*} browserWindow - only exists in the scope of default method, gotta pass it through to process
  */
-function checkAuth(token, browserWindow) {
+function checkAuth(token) {
 
-    fetch("https://astui.tech/api/v1/validate", {
+    return fetch("https://astui.tech/api/v1/validate", {
         method: "post",
         headers: {
             "Cache-Control": "no-cache",
@@ -71,7 +71,7 @@ function checkAuth(token, browserWindow) {
             if (response.status == 200) {
         
                 Settings.setSettingForKey('api_token', token);
-                browserWindow.close();
+                
             }  else {
                 UI.alert('Failed', response.status + ": " + response.message);
             } 

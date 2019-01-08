@@ -1,6 +1,6 @@
 /**
  * Class for handling tangencies call.
- * This does not require user input at all
+ * This does not require user input at all but has a webview that shows you that processes are running
  * In more complex programs it is possible to get user input, however in here it's
  * useful for the user (Feel free to implement a ui)
  * 
@@ -8,8 +8,8 @@
 //Getting dependencies 
 var UI = require('sketch/ui');
 var Settings = require('sketch/settings');
-var counter = 0; //setting a counter
-var global_error = 200;
+import BrowserWindow from 'sketch-module-web-view';
+
 
 /**
  * Default method that get executed when the plugin triggers this command
@@ -18,47 +18,112 @@ var global_error = 200;
  * @param {*} context - selection
  */
 export default function (context) {
-    global_error = 200;
-    // query selected layers for svg path data
-    var loopSelection = context.selection.objectEnumerator(),
-        obj;
-    while (obj = loopSelection.nextObject()) {
-        if (obj.class() == MSShapeGroup) {
-            message = message + "Group " + obj.layers().length;
-            var i;
 
-            for (i = 0; i < obj.layers().length; i++) {
-                if (obj.layers()[i].class() == MSShapePathLayer) {
-                    doMovePointsToTangencies(obj.layers()[i]);
-                }
-            }
-        }
-        if (obj.class() == MSShapePathLayer) {
-            doMovePointsToTangencies(obj);
-        }
-    }
+    const options = {
+        identifier: 'tangencies.id',
+        width: 350,
+        height: 180
+      };
+      //instantiating the window and getting the webContents object to work with
+    const browser = new BrowserWindow(options);
+    
+    browser.setResizable(false);
 
+    browser.loadURL('./tangencies.html');
+  
+    let paths = processTangencies(context);
+
+    let newArray = new Array();
+
+    paths.forEach(function(path){
+        newArray.push(doMovePointsToTangencies(path));
+    });
+
+    Promise.all(newArray).then((s)=> {
+        browser.close();
+    }).catch(function(error){
+        UI.alert("Error",error);
+    });
+ 
 }
 
 /**
- * Method that replaces the original paths with the new received from the API
- * Instead of just replacing pathdata of each selection, 
- * we define with cocoa script what type of curve each path is and parse it
- * Upon completion we can get alerted that all paths are replaced 
+ * Processing tangencies diving into multiple grouping elements and adding them to the array of all paths
+ * 
+ * @param {*} context - selection
+ * @return array arrayPaths - array of paths
+ */
+function processTangencies(context) {
+    let loopSelection = context.selection;
+    let arrayPaths = new Array();
+    
+    if (loopSelection.length == 0) {
+            UI.alert("Error", "No paths are selected");
+  
+    }
+    loopSelection.forEach(layer => {
+        if ((layer.class() == MSLayerGroup) || (layer.class() == MSShapeGroup)) {
+            let i;
+            for (i = 0; i < layer.layers().length; i++) {
+                if (layer.layers()[i].class() == MSShapePathLayer) {
+                    var path = svgConverter(layer.layers()[i].pathInFrame());
+                    arrayPaths.push({"path": path, "obj": layer.layers()[i]});
+                } else if ((layer.layers()[i].class() == MSShapeGroup) || (layer.class() == MSLayerGroup)) {
+                
+                    layer.layers()[i].layers().forEach(element => {
+                       
+                        if (element.class() == MSShapePathLayer) {
+                            var path = svgConverter(element.pathInFrame());
+                            arrayPaths.push({"path": path, "obj": element});
+  
+                        }
+                    });
+                }
+            }
+        } else if (layer.class() == MSShapePathLayer) {
+                var path = svgConverter(layer.pathInFrame());
+                arrayPaths.push({"path": path, "obj": layer});
+           
+        } 
+    });
+  
+    return arrayPaths;
+  
+}
+
+/**
+ * Converting the Sketch Class into path data
+ *  
+ * @param {*} obj 
+ * 
+ * @return {string} svgPath
+ */
+
+function svgConverter(obj)
+{
+
+    var path = NSBezierPath.bezierPathWithPath(obj);
+
+    var sel = NSSelectorFromString("svgPathAttribute");
+    var svg = path.performSelector(sel);
+    var svgPath = svg.toString().slice(3, -1);
+
+    return svgPath;
+}
+
+/**
+ * Hacking method of replacing pathdata in passed object
+ * returns a promise chained into the previous method
  * 
  * @param {*} obj 
  */
 function moveToTangenciesClosure(obj) {
-    counter++;
     return function (data) {
         var isPathClosedPtr = MOPointer.alloc().init();
         var svgProcessedPath = SVGPathInterpreter.bezierPathFromCommands_isPathClosed(data.path, isPathClosedPtr);
-
+  
         var newPath = MSPath.pathWithBezierPath(svgProcessedPath);
-
-        obj.setPathInFrame_(newPath);
-        counter--;
-        return data;
+        obj.setPathInFrame_(newPath);       
     }
 }
 
@@ -71,21 +136,12 @@ function moveToTangenciesClosure(obj) {
  * 
  * @param {*} obj 
  */
-function doMovePointsToTangencies(obj) {
+function doMovePointsToTangencies(svg) {
     var url = "https://astui.tech/api/v1/tangencies";
     var apiToken = Settings.settingForKey("api_token");
-    counter = 0;
+    var content = "path=" + svg.path + "&api_token=" + apiToken + "&accuracy=10&angle=90";
 
-    var path = NSBezierPath.bezierPathWithPath(obj.pathInFrame());
-
-    var sel = NSSelectorFromString("svgPathAttribute");
-    var svg = path.performSelector(sel);
-
-    // slice off d= and quotes
-    var svgPath = svg.toString().slice(3, -1);
-    var content = "path=" + svgPath + "&api_token=" + apiToken + "&accuracy=10&angle=90";
-
-    fetch(url, {
+    return fetch(url, {
             method: 'post',
             headers: {
                 "Cache-Control": "no-cache",
@@ -105,13 +161,5 @@ function doMovePointsToTangencies(obj) {
                 return response.json();
             }
         )
-        .then(moveToTangenciesClosure(obj))
-        .catch(function (error) {
-            //Handling the thrown error. Since we got the whole response, we can set appropriate error message straight out of the response
-            if (global_error == 200) {
-                UI.alert("Error", error.status + ": " + error.statusText);
-                global_error = error.status; //sets the var letting us only see one alert. 
-
-            }
-        });
+        .then(moveToTangenciesClosure(svg.obj));
 }

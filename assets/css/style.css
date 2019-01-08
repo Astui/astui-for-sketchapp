@@ -68,6 +68,7 @@ input[type=text], input[type=number] {
   margin: 10px 0;
   font-size: 12px;
   padding: 3px;
+  width: 100%;
 }
 input[type=range] {
   height: 33px;
@@ -133,4 +134,42 @@ outline-width: 5px;
 #tolerance_value {
   height: 15px;
   margin: 5px 0 10;
+}
+.line-wrapper {
+  display: inline-grid;
+  grid-template-columns:  auto auto auto;
+  grid-gap: 50px;
+  margin: 10px 0;
+}
+select {
+    width: 100%;
+    margin: 10px 0;
+    padding: 4px;
+}
+
+/*Loader*/
+#loading {
+display: none;
+    width: 64px;
+    height: 64px;
+    margin: 1em auto;
+}
+#loading:after {
+  content: " ";
+  display: block;
+  width: 46px;
+  height: 46px;
+  margin: 1px;
+  border-radius: 50%;
+  border: 5px solid #00a7ff;
+  border-color: #00a7ff transparent #00a7ff transparent;
+  animation: loading 1.2s linear infinite;
+}
+@keyframes loading {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }

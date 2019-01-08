@@ -7,9 +7,6 @@
 var UI = require('sketch/ui');
 var fetch = require('sketch-polyfill-fetch');
 var Settings = require('sketch/settings');
-var counter = 0; //counter for iterations
-// file scoped variable for stopping double error messaging. Setting the code to a successful request 
-var global_error = 200;
 
 //allows to create a browser window rather than rely just on the UI
 import BrowserWindow from 'sketch-module-web-view';
@@ -23,14 +20,16 @@ import BrowserWindow from 'sketch-module-web-view';
  */
 export default function (context) {
   const options = {
-    identifier: 'supersmartremove.id',
+    identifier: 'smartremove.id',
     width: 400,
-    height: 350
+    height: 450
   };
   //instantiating the window and getting the webContents object to work with
   const browserWindow = new BrowserWindow(options);
 
   browserWindow.setResizable(false);
+
+  browserWindow.loadURL('./supersmartremove.html');
 
   const webContents = browserWindow.webContents;
 
@@ -39,9 +38,21 @@ export default function (context) {
    *  Working with the path data with processSelected method and closing the browser window
   /*/
   webContents.on('nativeGo', (s) => {
-    var obj = JSON.parse(s);
-    processSelected(context, obj, webContents);
-    browserWindow.close();
+    const obj = JSON.parse(s);
+    // you can continue working synchronously here
+    let paths = processSelected(context);
+
+    let newArray = new Array();
+
+    paths.forEach(function(path){
+        newArray.push(doSmartPointRemoval(path, obj));
+    });
+    Promise.all(newArray).then((s) => {
+      browserWindow.close();
+    }).catch(function(error){
+        UI.alert("Error",error);
+    });
+
   });
 
   /**
@@ -51,28 +62,83 @@ export default function (context) {
     browserWindow.close();
   });
 
-  browserWindow.loadURL('./supersmartremove.html');
 }
 
 /**
- * Method that replaces the original paths with the new received from the API
- * Instead of just replacing pathdata of each selection, 
- * we define with cocoa script what type of curve each path is and parse it
- * Upon completion we can get alerted that all paths are replaced using setPathInFrame
+ * Hacking method of replacing pathdata in passed object
+ * returns a promise chained into the previous method
  * 
  * @param {*} obj 
  */
 function smartRemovalClosure(obj) {
-  counter++;
-  return function (data) {
-    var isPathClosedPtr = MOPointer.alloc().init();
-    var svgProcessedPath = SVGPathInterpreter.bezierPathFromCommands_isPathClosed(data.path, isPathClosedPtr);
+  // log("Getting to closures");
+    return function (data) {
+      var isPathClosedPtr = MOPointer.alloc().init();
+      var svgProcessedPath = SVGPathInterpreter.bezierPathFromCommands_isPathClosed(data.path, isPathClosedPtr);
 
-    var newPath = MSPath.pathWithBezierPath(svgProcessedPath);
-    obj.setPathInFrame_(newPath);
-    counter--;
-    return data;
+      var newPath = MSPath.pathWithBezierPath(svgProcessedPath);
+      obj.setPathInFrame_(newPath);       
+    }
+}
+
+
+/**
+ * Breaking the selected object on the screen into shapes and paths and 
+ * foreach of the paths process them through Astui
+ * 
+ * @param {*} context 
+ * @param {*} options 
+ * @param {*} webContents 
+ */
+function processSelected(context) {
+  let loopSelection = context.selection;
+  let arrayPaths = new Array();
+  
+  if (loopSelection.length == 0) {
+          UI.alert("Error", "No paths are selected");
   }
+  //check class's name if group 
+  //drill down to further selection where there is a path and add that to the array
+  loopSelection.forEach(layer => {
+      if ((layer.class() == MSLayerGroup) || (layer.class() == MSShapeGroup)) {
+          let i;
+          for (i = 0; i < layer.layers().length; i++) {
+              if (layer.layers()[i].class() == MSShapePathLayer) {
+                  let path = svgConverter(layer.layers()[i].pathInFrame());
+                  arrayPaths.push({"path": path, "obj": layer.layers()[i]});
+              } else if ((layer.layers()[i].class() == MSShapeGroup) || (layer.class() == MSLayerGroup)) {
+
+                  layer.layers()[i].layers().forEach(element => {
+                     
+                      if (element.class() == MSShapePathLayer) {
+                          let path = svgConverter(element.pathInFrame());
+                          arrayPaths.push({"path": path, "obj": element});
+
+                      }
+                  });
+              }
+          }
+      } else if (layer.class() == MSShapePathLayer) {
+              let path = svgConverter(layer.pathInFrame());
+              arrayPaths.push({"path": path, "obj": layer});
+         
+      } 
+  });
+
+  return arrayPaths;
+
+}
+
+function svgConverter(obj)
+{
+
+    var path = NSBezierPath.bezierPathWithPath(obj);
+
+    var sel = NSSelectorFromString("svgPathAttribute");
+    var svg = path.performSelector(sel);
+    var svgPath = svg.toString().slice(3, -1);
+
+    return svgPath;
 }
 
 
@@ -82,29 +148,23 @@ function smartRemovalClosure(obj) {
  * 1.We send the data
  * 2. we wait for the response
  * 3. we replace paths with that response
- * @param {*} obj 
+ * @param {*} pathObject object with path data and the object for the closure
+ * @param {*} options 
+ * 
+ * @return Promise 
  */
-function doSmartPointRemoval(obj, options, webContents) {
-  var url = "https://astui.tech/api/v1/ssr";
-  var api_token = Settings.settingForKey("api_token");
-  var path = NSBezierPath.bezierPathWithPath(obj.pathInFrame());
-  var closefunc = smartRemovalClosure(obj, webContents);
+function doSmartPointRemoval(pathObject, options) {
+  const url = "https://astui.tech/api/v1/spr";
+  let api_token = Settings.settingForKey("api_token");
+  const closefunc = smartRemovalClosure(pathObject.obj);
 
-  var sel = NSSelectorFromString("svgPathAttribute");
-  var svg = path.performSelector(sel);
-
-  // slice off d= and quotes 
-  var svgpath = svg.toString().slice(3, -1);
-
-
-  var postbody = "path=" + svgpath + "&api_token=" + api_token + "&tolerance=" + options.tolerance + "&decimal=" + options.decimal;
-  fetch(url, {
+  let postbody = "path=" + pathObject.path + "&api_token=" + api_token + "&tolerance=" + options.tolerance + "&decimal=" + options.decimal;
+  return fetch(url, {
       method: 'post',
       headers: {
         "Cache-Control": "no-cache",
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json"
-
       },
       body: postbody
     })
@@ -121,48 +181,6 @@ function doSmartPointRemoval(obj, options, webContents) {
           }
         }
     )
-    .then(closefunc)
-    .catch(function (error) {
-      //Handling the thrown error. Since we got the whole response, we can set appropriate error message straight out of the response
-      if (global_error == 200) {
-        UI.alert("Error", error.status + ": " + error.statusText);
-        global_error = error.status; //sets the var letting us only see one alert. 
-
-      }
-    });
+    .then(closefunc);
 }
 
-
-/**
- * Breaking the selected object on the screen into shapes and paths and 
- * foreach of the paths process them through Astui
- * 
- * @param {*} context 
- * @param {*} options 
- * @param {*} webContents 
- */
-function processSelected(context, options, webContents) {
-
-  counter = 0;
-  global_error = 200;
-
-  /* query selected layers for svg path data */
-  var loopSelection = context.selection.objectEnumerator(),
-    obj;
-  while (obj = loopSelection.nextObject()) {
-    if (obj.class() == MSShapeGroup) {
-      var i;
-
-      for (i = 0; i < obj.layers().length; i++) {
-        if (obj.layers()[i].class() == MSShapePathLayer) {
-          doSmartPointRemoval(obj.layers()[i], options, webContents);
-        }
-      }
-
-    }
-    if (obj.class() == MSShapePathLayer) {
-      doSmartPointRemoval(obj, options, webContents);
-    }
-  }
-
-}

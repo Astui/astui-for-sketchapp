@@ -1,7 +1,7 @@
 {
   "name" : "Astui For Sketch",
   "identifier" : "astui.sketchplugin",
-  "version" : "1.0.0",
+  "version" : "2.0.0",
   "description" : "Astui plugin for Sketch",
   "authorEmail" : "astui@astutegraphics.co.uk",
   "author" : "Astute Graphics Limited",
@@ -23,6 +23,11 @@
       "name": "Move Points to Tangencies",
       "identifier": "tangencies-identifier",
       "script": "./tangencies.js"
+    },
+    {
+      "name": "Offset Path",
+      "identifier": "offset-identifier",
+      "script": "./offsetpath.js"
     }
   ],
   "menu": {
@@ -30,7 +35,8 @@
     "items": [
       "api-token-identifier",
       "ssr-identifier",
-      "tangencies-identifier"
+      "tangencies-identifier",
+      "offset-identifier"
     ]
   },
   "disableCocoaScriptPreprocessor": true
