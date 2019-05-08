@@ -8,7 +8,7 @@ let width = document.getElementById('width');
 let type = document.getElementById('type');
 let limit = document.getElementById('limit');
 
-if (type.value == 'miter') {
+if (type.value == 'mitre') {
     limit.disabled = false;
     limit.value = 20;
 } 
@@ -18,7 +18,7 @@ if (type.value == 'miter') {
  */
 type.addEventListener('change', function () {
     
-    if (type.value == 'miter') {
+    if (type.value == 'mitre') {
         limit.disabled = false;
         limit.value = 20;
     } else {
@@ -31,7 +31,7 @@ type.addEventListener('change', function () {
  * Passing data selected by the user into the sketch environment
  * width - is selected by the user 
  * type - offset type
- * limit - if type is miter
+ * limit - if type is mitre
  */
 document.getElementById('apply').addEventListener('click', function () {
     // log('testing');

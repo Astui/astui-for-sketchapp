@@ -23,10 +23,13 @@
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@skpm/builder": "^0.5.2"
+    "@skpm/builder": "^0.5.16"
   },
   "dependencies": {
-    "npm": "^6.4.1",
-    "sketch-module-web-view": "^1.1.8"
+    "npm": "^6.9.0",
+    "sketch-module-web-view": "^1.2.3",
+    "sketch-polyfill-console": "^0.6.2",
+    "sketch-polyfill-promise": "^0.1.0",
+    "skpm": "^1.2.0"
   }
 }
